@@ -29,6 +29,7 @@ import Data.Char                  (isSpace)
 import Data.List                  (foldl', isPrefixOf, sortOn, stripPrefix)
 import Data.Maybe                 (fromMaybe, maybeToList)
 import Numeric                    (showFFloat)
+import System.AtomicWrite.Writer.String (atomicWriteFile)
 import System.Exit                (ExitCode (..))
 import System.FilePath            ((<.>), (</>))
 import System.IO.Temp             (withSystemTempDirectory, withTempDirectory)
@@ -207,7 +208,11 @@ imageForFormula EnvironmentOptions {..} FormulaOptions {..} eqn =
 
             readFile path `orElse` do
                 result <- action
-                io $ writeFile path result
+                -- Use an atomic file write (rather than 'writeFile'), to
+                -- prevent "resource busy (file is locked)" errors from the GHC
+                -- RTS when more than one thread tries to update the same cache
+                -- entry concurrently.
+                io $ atomicWriteFile path result
                 return result
 
     orElse :: IO a -> ExceptT e IO a -> ExceptT e IO a
