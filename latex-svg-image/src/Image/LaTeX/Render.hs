@@ -31,6 +31,8 @@ import Data.Maybe                 (fromMaybe, maybeToList)
 import Numeric                    (showFFloat)
 import System.Exit                (ExitCode (..))
 import System.FilePath            (splitFileName, (<.>), (</>))
+import System.IO                  (hPutStrLn, stderr)
+import System.IO.Error            (catchIOError)
 import System.IO.Temp             (withSystemTempDirectory, withTempDirectory, writeTempFile)
 
 -- import System.IO
@@ -208,7 +210,9 @@ imageForFormula EnvironmentOptions {..} FormulaOptions {..} eqn =
             readFile path `orElse` do
                 result <- action
                 -- Write atomically for safe concurrent cache access.
+                -- Treat unexpected cache update errors as non-fatal.
                 io $ atomicWriteFile path result
+                        `catchIOError` \err -> hPutStrLn stderr ("latex-svg: error updating " <> show path <> " (ignoring): " <> show err)
                 return result
 
     orElse :: IO a -> ExceptT e IO a -> ExceptT e IO a
